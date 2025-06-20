@@ -2,6 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 import { JobModule } from './job/job.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -9,6 +10,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 @Module({
   imports: [
     UsersModule,
+    AuthModule,
     JobModule,
     MongooseModule.forRoot('mongodb://localhost:27017/nest'),
   ],
@@ -18,6 +20,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     /**消费日志中间件 */
-    consumer.apply(LoggerMiddleware).forRoutes('users');
+    consumer.apply(LoggerMiddleware).forRoutes('profiles', 'auth');
   }
 }

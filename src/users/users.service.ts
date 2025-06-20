@@ -2,159 +2,203 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PageQueryDto } from './dto/page-query.dto';
-import { User } from './schemas/user.schema';
+import { UserProfile } from './schemas/user-profile.schema';
 import { ApiResponse, Page } from '../common/interfaces/api-response.interface';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(UserProfile.name) private userProfileModel: Model<UserProfile>,
+  ) {}
 
-  /**创建 */
-  async create(createUserDto: CreateUserDto): Promise<ApiResponse<boolean>> {
+  /**创建用户资料 */
+  async createProfile(
+    createProfileDto: CreateProfileDto,
+  ): Promise<ApiResponse<UserProfile | null>> {
     try {
-      // 检查用户名是否已存在
-      if (createUserDto.name) {
-        const existingUser = await this.userModel
-          .findOne({ name: createUserDto.name })
-          .exec();
-        if (existingUser) {
-          return {
-            code: 500,
-            data: false,
-            errorMessage: '该用户已存在',
-          };
-        }
+      // 检查用户资料是否已存在
+      const existingProfile = await this.userProfileModel
+        .findOne({ user_id: createProfileDto.user_id })
+        .exec();
+
+      if (existingProfile) {
+        return {
+          code: 400,
+          data: null,
+          errorMessage: '用户资料已存在',
+        };
       }
 
-      const createdUser = new this.userModel(createUserDto);
-      await createdUser.save();
-      return {
-        code: 200,
-        data: true,
-        errorMessage: null,
-      };
-    } catch (error) {
-      return {
-        code: 500,
-        data: false,
-        errorMessage: error.message || '创建用户失败',
-      };
-    }
-  }
-
-  /**查所有 */
-  async findAll(): Promise<ApiResponse<User[]>> {
-    try {
-      const users = await this.userModel.find().exec();
-      return {
-        code: 200,
-        data: users,
-        errorMessage: null,
-      };
-    } catch (error) {
-      return {
-        code: 500,
-        data: [],
-        errorMessage: error.message || '查询用户列表失败',
-      };
-    }
-  }
-
-  /**分页查询 */
-  async findByPage(pageQuery: PageQueryDto): Promise<ApiResponse<Page<User>>> {
-    const { pageNum = 1, pageSize = 10, name, phone } = pageQuery;
-    const skip = (pageNum - 1) * pageSize;
-
-    // 构建查询条件
-    const query: any = {};
-    if (name) {
-      query.name = { $regex: name, $options: 'i' }; // i表示不区分大小写
-    }
-    if (phone) {
-      query.phone = { $regex: phone, $options: 'i' };
-    }
-
-    try {
-      const total = await this.userModel.countDocuments(query).exec();
-      const data = await this.userModel
-        .find(query)
-        .skip(skip)
-        .limit(pageSize)
-        .exec();
-      const totalPages = Math.ceil(total / pageSize);
+      // 创建用户资料
+      const createdProfile = new this.userProfileModel(createProfileDto);
+      await createdProfile.save();
 
       return {
         code: 200,
-        errorMessage: null,
-        data: {
-          content: data,
-          pageNum,
-          pageSize,
-          totalElements: total,
-          totalPages,
-        },
-      };
-    } catch (error) {
-      return {
-        code: 500,
-        data: {
-          content: [],
-          pageNum,
-          pageSize,
-          totalElements: 0,
-          totalPages: 0,
-        },
-        errorMessage: error.message || '分页查询失败',
-      };
-    }
-  }
-
-  /**查一个 */
-  async findOne(name: string): Promise<ApiResponse<User | null>> {
-    try {
-      const user = await this.userModel.findOne({ name }).exec();
-      return {
-        code: 200,
-        data: user,
+        data: createdProfile,
         errorMessage: null,
       };
     } catch (error) {
       return {
         code: 500,
         data: null,
-        errorMessage: error.message || '查询用户失败',
+        errorMessage: `创建用户资料失败: ${error.message}`,
       };
     }
   }
 
-  /**更新 */
-  async update(
-    name: string,
+  /**获取用户资料 */
+  async getProfile(userId: number): Promise<ApiResponse<UserProfile | null>> {
+    try {
+      const profile = await this.userProfileModel
+        .findOne({ user_id: userId })
+        .exec();
+
+      if (!profile) {
+        return {
+          code: 404,
+          data: null,
+          errorMessage: '用户资料不存在',
+        };
+      }
+
+      return {
+        code: 200,
+        data: profile,
+        errorMessage: null,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        errorMessage: `获取用户资料失败: ${error.message}`,
+      };
+    }
+  }
+
+  /**更新用户资料 */
+  async updateProfile(
     updateUserDto: UpdateUserDto,
-  ): Promise<ApiResponse<boolean>> {
+  ): Promise<ApiResponse<UserProfile | null>> {
+    const { user_id } = updateUserDto;
     try {
-      await this.userModel.updateOne({ name }, updateUserDto).exec();
+      const updatedProfile = await this.userProfileModel
+        .findOneAndUpdate({ user_id }, updateUserDto, { new: true })
+        .exec();
+
+      if (!updatedProfile) {
+        return {
+          code: 404,
+          data: null,
+          errorMessage: '用户资料不存在',
+        };
+      }
+
       return {
         code: 200,
-        data: true,
+        data: updatedProfile,
         errorMessage: null,
       };
     } catch (error) {
       return {
         code: 500,
-        data: false,
-        errorMessage: error.message || '更新用户失败',
+        data: null,
+        errorMessage: `更新用户资料失败: ${error.message}`,
       };
     }
   }
 
-  /**删除 */
-  async remove(name: string): Promise<ApiResponse<boolean>> {
+  /**获取所有用户资料 */
+  async findAll(): Promise<ApiResponse<UserProfile[]>> {
     try {
-      await this.userModel.deleteOne({ name }).exec();
+      const profiles = await this.userProfileModel.find().exec();
+      return {
+        code: 200,
+        data: profiles,
+        errorMessage: null,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: [],
+        errorMessage: `获取所有用户资料失败: ${error.message}`,
+      };
+    }
+  }
+
+  /**分页查询用户资料 */
+  async findByPage(
+    pageQuery: PageQueryDto,
+  ): Promise<ApiResponse<Page<UserProfile>>> {
+    try {
+      const { pageNum = 1, pageSize = 10, ...rest } = pageQuery;
+      const skip = (pageNum - 1) * pageSize;
+
+      const query = {};
+      // 构建查询条件
+      Object.keys(rest).forEach((key) => {
+        if (rest[key]) {
+          if (typeof rest[key] === 'string') {
+            query[key] = { $regex: rest[key], $options: 'i' };
+          } else {
+            query[key] = rest[key];
+          }
+        }
+      });
+
+      const total = await this.userProfileModel.countDocuments(query).exec();
+      const profiles = await this.userProfileModel
+        .find(query)
+        .skip(skip)
+        .limit(pageSize)
+        .exec();
+
+      const totalPages = Math.ceil(total / pageSize);
+
+      return {
+        code: 200,
+        data: {
+          content: profiles,
+          pageNum,
+          pageSize,
+          totalElements: total,
+          totalPages,
+        },
+        errorMessage: null,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: {
+          content: [],
+          pageNum: 1,
+          pageSize: 10,
+          totalElements: 0,
+          totalPages: 0,
+        },
+        errorMessage: `分页查询用户资料失败: ${error.message}`,
+      };
+    }
+  }
+
+  /**删除用户资料 */
+  async remove(userId: number): Promise<ApiResponse<boolean>> {
+    try {
+      const result = await this.userProfileModel
+        .deleteOne({ user_id: userId })
+        .exec();
+
+      if (result.deletedCount === 0) {
+        return {
+          code: 404,
+          data: false,
+          errorMessage: '用户资料不存在',
+        };
+      }
+
       return {
         code: 200,
         data: true,
@@ -164,7 +208,7 @@ export class UsersService {
       return {
         code: 500,
         data: false,
-        errorMessage: error.message || '删除用户失败',
+        errorMessage: `删除用户资料失败: ${error.message}`,
       };
     }
   }

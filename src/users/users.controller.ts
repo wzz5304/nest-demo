@@ -3,34 +3,29 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
-  // ParseIntPipe,
-  // HttpStatus,
   UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PageQueryDto } from './dto/page-query.dto';
-import { ExcludeNullInterceptor } from '../common/interceptor/excludenull.interceptor';
-import { TimeoutInterceptor } from '../common/interceptor/timeout.interceptor';
+import { TransformInterceptor } from '../common/interceptors/transform.interceptor';
 
-@UseInterceptors(ExcludeNullInterceptor, TimeoutInterceptor)
 @Controller('users')
+@UseInterceptors(TransformInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post('/create')
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  @Post()
+  createProfile(@Body() createProfileDto: CreateProfileDto) {
+    return this.usersService.createProfile(createProfileDto);
   }
 
-  @Get('/details')
+  @Get()
   findAll() {
-    const res = this.usersService.findAll();
-    return res;
+    return this.usersService.findAll();
   }
 
   @Post('/page')
@@ -38,24 +33,18 @@ export class UsersController {
     return this.usersService.findByPage(pageQuery);
   }
 
-  @Get('/details/:name')
-  findOne(
-    @Param(
-      'name',
-      // new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }),
-    )
-    name: string,
-  ) {
-    return this.usersService.findOne(name);
+  @Get(':userId')
+  getProfile(@Param('userId') userId: number) {
+    return this.usersService.getProfile(userId);
   }
 
-  @Patch('/update/:name')
-  update(@Param('name') name: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(name, updateUserDto);
+  @Post('/update')
+  updateProfile(@Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.updateProfile(updateUserDto);
   }
 
-  @Delete('/del/:name')
-  remove(@Param('name') name: string) {
-    return this.usersService.remove(name);
+  @Delete(':userId')
+  remove(@Param('userId') userId: number) {
+    return this.usersService.remove(userId);
   }
 }
