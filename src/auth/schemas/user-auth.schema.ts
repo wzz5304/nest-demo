@@ -26,7 +26,7 @@ export class UserAuth extends Document {
   @Prop({ unique: true, sparse: true })
   phone: string;
 
-  @Prop({ type: String, enum: UserRole, default: UserRole.USER })
+  @Prop({ type: String, enum: UserRole, default: UserRole.ADMIN })
   role: UserRole;
 
   @Prop({ default: Date.now })
@@ -34,6 +34,9 @@ export class UserAuth extends Document {
 
   @Prop()
   last_login_at: Date;
+
+  @Prop()
+  last_logout_at: Date;
 }
 
 export const UserAuthSchema = SchemaFactory.createForClass(UserAuth);

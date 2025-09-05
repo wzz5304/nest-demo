@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as crypto from 'crypto';
+import { JwtService } from '@nestjs/jwt';
 
 import { RegisterAuthDto } from './dto/register-auth.dto';
 import { LoginAuthDto } from './dto/login-auth.dto';
@@ -10,6 +11,7 @@ import { Counter } from './schemas/counter.schema';
 import { ApiResponse, Page } from '../common/interfaces/api-response.interface';
 import { UsersService } from '../users/users.service';
 import { PageQueryDto } from './dto/page-query.dto';
+import { LoginResponse } from './interfaces/login-response.interface';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +19,7 @@ export class AuthService {
     @InjectModel(UserAuth.name) private userAuthModel: Model<UserAuth>,
     @InjectModel(Counter.name) private counterModel: Model<Counter>,
     private usersService: UsersService,
+    private jwtService: JwtService,
   ) {}
 
   /**获取自增ID */
@@ -107,7 +110,7 @@ export class AuthService {
 
       return {
         code: 200,
-        data: userWithoutPassword,
+        data: userWithoutPassword as any,
         errorMessage: null,
       };
     } catch (error) {
@@ -122,7 +125,7 @@ export class AuthService {
   /**登录 */
   async login(
     loginAuthDto: LoginAuthDto,
-  ): Promise<ApiResponse<UserAuth | null>> {
+  ): Promise<ApiResponse<LoginResponse | null>> {
     try {
       // 查找用户
       const user = await this.userAuthModel
@@ -156,13 +159,24 @@ export class AuthService {
       user.last_login_at = new Date();
       await user.save();
 
-      // 登录成功，返回用户信息（不包含密码哈希）
+      // 生成 JWT token
+      const payload = {
+        sub: user.id,
+        username: user.username,
+        role: user.role,
+      };
+      const token = this.jwtService.sign(payload);
+
+      // 登录成功，返回用户信息和 token
       const userWithoutPassword = user.toObject();
       delete userWithoutPassword.password_hash;
 
       return {
         code: 200,
-        data: userWithoutPassword,
+        data: {
+          user: userWithoutPassword as any,
+          access_token: token,
+        },
         errorMessage: null,
       };
     } catch (error) {
@@ -170,6 +184,45 @@ export class AuthService {
         code: 500,
         data: null,
         errorMessage: `登录失败: ${error.message}`,
+      };
+    }
+  }
+
+  /**登出 */
+  async logout(user: any): Promise<ApiResponse<null>> {
+    try {
+      // 在JWT认证中，服务器端通常不存储token状态
+      // 真正的登出逻辑应该在客户端删除token
+      // 这里可以实现一些服务器端的清理工作，例如：
+
+      if (user && user.id) {
+        // 1. 记录用户登出时间
+        const userAuth = await this.userAuthModel
+          .findOne({ id: user.id })
+          .exec();
+        if (userAuth) {
+          // 记录用户最后登出时间
+          userAuth.last_logout_at = new Date();
+          await userAuth.save();
+          console.log(
+            `用户 ${user.username} (ID: ${user.id}) 已登出，登出时间: ${userAuth.last_logout_at}`,
+          );
+        }
+
+        // 2. 将当前token加入黑名单（需要额外实现token黑名单存储）
+        // 3. 清除服务器端的会话数据（如果有）
+      }
+
+      return {
+        code: 200,
+        data: null,
+        errorMessage: null,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        errorMessage: `登出失败: ${error.message}`,
       };
     }
   }

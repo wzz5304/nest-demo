@@ -6,7 +6,9 @@ import {
   Param,
   Delete,
   UseInterceptors,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { UsersService } from './users.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -29,7 +31,10 @@ export class UsersController {
   }
 
   @Post('/page')
-  findByPage(@Body() pageQuery: PageQueryDto) {
+  findByPage(@Body() pageQuery: PageQueryDto, @Req() req: Request) {
+    // 获取解析后的用户数据，而不是原始token
+    const user = req.user;
+    console.log('当前登录用户信息', user);
     return this.usersService.findByPage(pageQuery);
   }
 

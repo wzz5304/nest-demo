@@ -1,5 +1,5 @@
-import { Controller, Get, Req, Redirect, Query, Res } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Controller, Get, Redirect, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 
 import { AppService } from './app.service';
 import { UsersService } from './users/users.service';
@@ -14,11 +14,6 @@ export class AppController {
   @Get()
   getHello(): string {
     return this.appService.getHello();
-  }
-
-  @Get('/get-cat')
-  findAll(@Req() request: Request): any {
-    return this.usersService.findAll();
   }
 
   @Get('docs')
